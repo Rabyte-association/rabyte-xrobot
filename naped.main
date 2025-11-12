@@ -1,20 +1,19 @@
-# gamepad_to_hoverboard_rightstick_speedscale.py
+
 import serial
 import time
 import pygame
 
-# Parametry
-SERIAL_PORT = "/dev/ttyUSB0"   # np. "COM3"
+# Konfiguracja
+SERIAL_PORT = "/dev/ttyUSB0"   # np. "COM3" na Windows
 BAUDRATE = 115200
-DEADZONE = 0.10                # martwa strefa gałki
-SEND_HZ = 30                   # częstotliwość wysyłania komend (Hz)
-MAX_SPEED = 1.0                # maksymalna prędkość wysyłana do robota (-1..1)
-SMOOTHING = 0.15              
-
+DEADZONE = 0.10
+SEND_HZ = 30
+MAX_SPEED = 1.0
+SMOOTHING = 0.15
+# -----------------------------------------------
 
 def clamp(v, a=-1.0, b=1.0):
     return max(a, min(b, v))
-
 
 def apply_deadzone(v, dz=DEADZONE):
     if abs(v) < dz:
@@ -23,28 +22,21 @@ def apply_deadzone(v, dz=DEADZONE):
     scaled = (abs(v) - dz) / (1.0 - dz)
     return sign * scaled
 
-
 def smooth_value(current, target, factor):
-    """Proste wygładzanie zmian (filtr 1. rzędu)."""
     return current + (target - current) * (1.0 - factor)
-
 
 def send_lr(ser, l, r):
     cmd = f"S LR {l:.3f} {r:.3f}\n"
     ser.write(cmd.encode("ascii"))
 
-
 def send_stop(ser):
     ser.write(b"STOP\n")
 
-
 def main():
-    # Serial
     ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=0.1)
     time.sleep(0.5)
     print(f"✅ Połączono z {SERIAL_PORT} ({BAUDRATE} bps)")
 
-    # Pygame init
     pygame.init()
     pygame.joystick.init()
 
@@ -54,41 +46,29 @@ def main():
 
     joy = pygame.joystick.Joystick(0)
     joy.init()
-    print(f"🎮 Używany pad: {joy.get_name()} ({joy.get_numaxes()} osi)")
+    print(f"🎮 Pad: {joy.get_name()} ({joy.get_numaxes()} osi)")
 
     clock = pygame.time.Clock()
-
-    # wartości bieżące
-    current_left = 0.0
-    current_right = 0.0
+    current_left, current_right = 0.0, 0.0
 
     try:
         while True:
             pygame.event.pump()
 
-            # Prawa galka
-            # typowo:
-            #   axis 2 = X prawej gałki (skręt)
-            #   axis 3 = Y prawej gałki (przód/tył)
+            # PRAWA GAŁKA: X = skręt, Y = przód/tył
             axis_turn = joy.get_axis(2) if joy.get_numaxes() > 2 else 0.0
             axis_forward = -joy.get_axis(3) if joy.get_numaxes() > 3 else 0.0
 
             f = apply_deadzone(axis_forward)
             t = apply_deadzone(axis_turn)
 
-            # Mieszanie różnicowe
             target_left = clamp((f + t) * MAX_SPEED)
             target_right = clamp((f - t) * MAX_SPEED)
 
-            # Wygładzanie (płynne przyspieszanie/hamowanie)
             current_left = smooth_value(current_left, target_left, SMOOTHING)
             current_right = smooth_value(current_right, target_right, SMOOTHING)
 
             send_lr(ser, current_left, current_right)
-
-            # Debug (odkomentuj, jeśli chcesz widzieć wartości)
-            # print(f"F:{f:+.2f} T:{t:+.2f} -> L:{current_left:+.2f} R:{current_right:+.2f}")
-
             clock.tick(SEND_HZ)
 
     except KeyboardInterrupt:
@@ -102,7 +82,6 @@ def main():
         ser.close()
         print("🔌 Połączenie zakończone.")
 
-
 if __name__ == "__main__":
     main()
-
+    
