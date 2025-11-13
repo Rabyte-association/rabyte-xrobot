@@ -3,24 +3,13 @@ import serial
 import time
 import pygame
 
-# Konfiguracja
-SERIAL_PORT = "/dev/ttyUSB1"   # zmień na odpowiedni port np. "COM4"
+SERIAL_PORT = "/dev/ttyUSB1"  # np. "COM4"
 BAUDRATE = 115200
 DEADZONE = 0.15
 SEND_HZ = 30
-SMOOTHING = 0.1
-MAX_SPEED = 1.0
-# -----------------------------------------------
-
-def clamp(v, a=-1.0, b=1.0):
-    return max(a, min(b, v))
 
 def apply_deadzone(v, dz=DEADZONE):
-    if abs(v) < dz:
-        return 0.0
-    sign = 1 if v >= 0 else -1
-    scaled = (abs(v) - dz) / (1.0 - dz)
-    return sign * scaled
+    return 0.0 if abs(v) < dz else v
 
 def send_command(ser, cmd):
     ser.write((cmd + "\n").encode("ascii"))
@@ -28,7 +17,7 @@ def send_command(ser, cmd):
 def main():
     ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=0.1)
     time.sleep(0.5)
-    print(f"✅ Połączono z {SERIAL_PORT} ({BAUDRATE} bps)")
+    print(f"✅ Połączono z {SERIAL_PORT}")
 
     pygame.init()
     pygame.joystick.init()
@@ -39,7 +28,7 @@ def main():
 
     joy = pygame.joystick.Joystick(0)
     joy.init()
-    print(f"🎮 Pad: {joy.get_name()} ({joy.get_numaxes()} osi)")
+    print(f"🎮 Pad: {joy.get_name()}")
 
     clock = pygame.time.Clock()
     prev_cmd = ""
@@ -48,26 +37,27 @@ def main():
         while True:
             pygame.event.pump()
 
-            # GAŁKA LEWA pionowo (oś Y) → góra/dół
-            axis_vertical = -joy.get_axis(1) if joy.get_numaxes() > 1 else 0.0
-            # GAŁKA LEWA poziomo (oś X) → przód/tył
-            axis_horizontal = joy.get_axis(0) if joy.get_numaxes() > 0 else 0.0
+            # Lewa gałka — sterowanie ramieniem
+            axis_x = joy.get_axis(0) if joy.get_numaxes() > 0 else 0.0  # przód/tył
+            axis_y = -joy.get_axis(1) if joy.get_numaxes() > 1 else 0.0  # góra/dół
 
-            vert = apply_deadzone(axis_vertical)
-            horiz = apply_deadzone(axis_horizontal)
-
+            x = apply_deadzone(axis_x)
+            y = apply_deadzone(axis_y)
             cmd = ""
 
-            if vert > 0.3:
+            # Priorytet: ruch pionowy ma pierwszeństwo
+            if y > 0.3:
                 cmd = "S UP"
-            elif vert < -0.3:
+            elif y < -0.3:
                 cmd = "S DOWN"
-            elif horiz > 0.3:
+            elif x > 0.3:
                 cmd = "S FRONT"
-            elif horiz < -0.3:
+            elif x < -0.3:
                 cmd = "S BACK"
             else:
                 cmd = "STOP"
+
+            # TODO: coś co obsługuje chwytaki (otwieranie / zamykanie / przechył)
 
             if cmd != prev_cmd:
                 send_command(ser, cmd)
@@ -80,10 +70,8 @@ def main():
         print("\n🟥 Zatrzymano przez użytkownika.")
     finally:
         send_command(ser, "STOP")
-        joy.quit()
-        pygame.quit()
         ser.close()
-        print("🔌 Połączenie zakończone.")
+        pygame.quit()
 
 if __name__ == "__main__":
     main()
