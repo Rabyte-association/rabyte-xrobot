@@ -17,18 +17,18 @@ def send_command(ser, cmd):
 def main():
     ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=0.1)
     time.sleep(0.5)
-    print(f"✅ Połączono z {SERIAL_PORT}")
+    print(f" Połączono z {SERIAL_PORT}")
 
     pygame.init()
     pygame.joystick.init()
 
     if pygame.joystick.get_count() == 0:
-        print("❌ Brak podłączonych padów!")
+        print(" Brak podłączonych padów!")
         return
 
     joy = pygame.joystick.Joystick(0)
     joy.init()
-    print(f"🎮 Pad: {joy.get_name()}")
+    print(f" Pad: {joy.get_name()}")
 
     clock = pygame.time.Clock()
     prev_cmd = ""
@@ -67,7 +67,7 @@ def main():
 
     except KeyboardInterrupt:
         send_command(ser, "STOP")
-        print("\n🟥 Zatrzymano przez użytkownika.")
+        print("\n Zatrzymano przez użytkownika.")
     finally:
         send_command(ser, "STOP")
         ser.close()
