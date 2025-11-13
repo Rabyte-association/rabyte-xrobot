@@ -35,18 +35,18 @@ def send_stop(ser):
 def main():
     ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=0.1)
     time.sleep(0.5)
-    print(f"✅ Połączono z {SERIAL_PORT} ({BAUDRATE} bps)")
+    print(f" Połączono z {SERIAL_PORT} ({BAUDRATE} bps)")
 
     pygame.init()
     pygame.joystick.init()
 
     if pygame.joystick.get_count() == 0:
-        print("❌ Brak podłączonych padów!")
+        print(" Brak podłączonych padów!")
         return
 
     joy = pygame.joystick.Joystick(0)
     joy.init()
-    print(f"🎮 Pad: {joy.get_name()} ({joy.get_numaxes()} osi)")
+    print(f" Pad: {joy.get_name()} ({joy.get_numaxes()} osi)")
 
     clock = pygame.time.Clock()
     current_left, current_right = 0.0, 0.0
@@ -72,7 +72,7 @@ def main():
             clock.tick(SEND_HZ)
 
     except KeyboardInterrupt:
-        print("\n🟥 Zatrzymano przez użytkownika.")
+        print("\n Zatrzymano przez użytkownika.")
         send_stop(ser)
     finally:
         send_stop(ser)
@@ -80,7 +80,7 @@ def main():
         pygame.joystick.quit()
         pygame.quit()
         ser.close()
-        print("🔌 Połączenie zakończone.")
+        print(" Połączenie zakończone.")
 
 if __name__ == "__main__":
     main()
