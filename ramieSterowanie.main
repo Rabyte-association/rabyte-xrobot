@@ -1,0 +1,79 @@
+
+#include <Arduino.h>
+
+
+#define MOTOR_LINKA_UPDOWN_PWM 5     // PWM dla silnika zwijania/rozwijania
+#define MOTOR_LINKA_UPDOWN_DIR 4     // Kierunek góra/dół
+
+#define MOTOR_WINDA_FRONTBACK_PWM 6  // PWM dla przesuwu przód/tył
+#define MOTOR_WINDA_FRONTBACK_DIR 7  // Kierunek przód/tył
+
+#define PWM_SPEED 180   // Maksymalna prędkość (0–255)
+// -----------------------------------------------
+
+String serialBuffer = "";
+
+
+void setMotor(int pwmPin, int dirPin, int direction, int speed) {
+  digitalWrite(dirPin, direction > 0 ? HIGH : LOW);
+  analogWrite(pwmPin, speed);
+}
+
+void stopAll() {
+  analogWrite(MOTOR_LINKA_UPDOWN_PWM, 0);
+  analogWrite(MOTOR_WINDA_FRONTBACK_PWM, 0);
+}
+
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(MOTOR_LINKA_UPDOWN_PWM, OUTPUT);
+  pinMode(MOTOR_LINKA_UPDOWN_DIR, OUTPUT);
+  pinMode(MOTOR_WINDA_FRONTBACK_PWM, OUTPUT);
+  pinMode(MOTOR_WINDA_FRONTBACK_DIR, OUTPUT);
+
+  stopAll();
+  Serial.println("Ramię / winda sterownik gotowy.");
+}
+
+
+void processCommand(const String &cmd) {
+  if (cmd == "S UP") {
+    setMotor(MOTOR_LINKA_UPDOWN_PWM, MOTOR_LINKA_UPDOWN_DIR, 1, PWM_SPEED);
+    setMotor(MOTOR_WINDA_FRONTBACK_PWM, MOTOR_WINDA_FRONTBACK_DIR, 0, 0);
+  } 
+  else if (cmd == "S DOWN") {
+    setMotor(MOTOR_LINKA_UPDOWN_PWM, MOTOR_LINKA_UPDOWN_DIR, -1, PWM_SPEED);
+    setMotor(MOTOR_WINDA_FRONTBACK_PWM, MOTOR_WINDA_FRONTBACK_DIR, 0, 0);
+  } 
+  else if (cmd == "S FRONT") {
+    setMotor(MOTOR_WINDA_FRONTBACK_PWM, MOTOR_WINDA_FRONTBACK_DIR, 1, PWM_SPEED);
+    setMotor(MOTOR_LINKA_UPDOWN_PWM, MOTOR_LINKA_UPDOWN_DIR, 0, 0);
+  } 
+  else if (cmd == "S BACK") {
+    setMotor(MOTOR_WINDA_FRONTBACK_PWM, MOTOR_WINDA_FRONTBACK_DIR, -1, PWM_SPEED);
+    setMotor(MOTOR_LINKA_UPDOWN_PWM, MOTOR_LINKA_UPDOWN_DIR, 0, 0);
+  } 
+  else if (cmd == "STOP") {
+    stopAll();
+  } 
+  else if (cmd == "PING") {
+    Serial.println("PONG");
+  }
+}
+
+
+void loop() {
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (serialBuffer.length() > 0) {
+        processCommand(serialBuffer);
+        serialBuffer = "";
+      }
+    } else {
+      serialBuffer += c;
+    }
+  }
+}
