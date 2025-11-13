@@ -1,0 +1,89 @@
+
+import serial
+import time
+import pygame
+
+# Konfiguracja
+SERIAL_PORT = "/dev/ttyUSB1"   # zmień na odpowiedni port np. "COM4"
+BAUDRATE = 115200
+DEADZONE = 0.15
+SEND_HZ = 30
+SMOOTHING = 0.1
+MAX_SPEED = 1.0
+# -----------------------------------------------
+
+def clamp(v, a=-1.0, b=1.0):
+    return max(a, min(b, v))
+
+def apply_deadzone(v, dz=DEADZONE):
+    if abs(v) < dz:
+        return 0.0
+    sign = 1 if v >= 0 else -1
+    scaled = (abs(v) - dz) / (1.0 - dz)
+    return sign * scaled
+
+def send_command(ser, cmd):
+    ser.write((cmd + "\n").encode("ascii"))
+
+def main():
+    ser = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=0.1)
+    time.sleep(0.5)
+    print(f"✅ Połączono z {SERIAL_PORT} ({BAUDRATE} bps)")
+
+    pygame.init()
+    pygame.joystick.init()
+
+    if pygame.joystick.get_count() == 0:
+        print("❌ Brak podłączonych padów!")
+        return
+
+    joy = pygame.joystick.Joystick(0)
+    joy.init()
+    print(f"🎮 Pad: {joy.get_name()} ({joy.get_numaxes()} osi)")
+
+    clock = pygame.time.Clock()
+    prev_cmd = ""
+
+    try:
+        while True:
+            pygame.event.pump()
+
+            # GAŁKA LEWA pionowo (oś Y) → góra/dół
+            axis_vertical = -joy.get_axis(1) if joy.get_numaxes() > 1 else 0.0
+            # GAŁKA LEWA poziomo (oś X) → przód/tył
+            axis_horizontal = joy.get_axis(0) if joy.get_numaxes() > 0 else 0.0
+
+            vert = apply_deadzone(axis_vertical)
+            horiz = apply_deadzone(axis_horizontal)
+
+            cmd = ""
+
+            if vert > 0.3:
+                cmd = "S UP"
+            elif vert < -0.3:
+                cmd = "S DOWN"
+            elif horiz > 0.3:
+                cmd = "S FRONT"
+            elif horiz < -0.3:
+                cmd = "S BACK"
+            else:
+                cmd = "STOP"
+
+            if cmd != prev_cmd:
+                send_command(ser, cmd)
+                prev_cmd = cmd
+
+            clock.tick(SEND_HZ)
+
+    except KeyboardInterrupt:
+        send_command(ser, "STOP")
+        print("\n🟥 Zatrzymano przez użytkownika.")
+    finally:
+        send_command(ser, "STOP")
+        joy.quit()
+        pygame.quit()
+        ser.close()
+        print("🔌 Połączenie zakończone.")
+
+if __name__ == "__main__":
+    main()
